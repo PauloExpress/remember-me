@@ -1,4 +1,4 @@
-# My Remember Me - Personal Data Pipeline
+# Express Remember Me - Personal Data Pipeline
 
 This project collects personal data from various sources and loads it into a Ghost Postgres database.
 
