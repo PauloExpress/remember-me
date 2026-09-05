@@ -13,14 +13,18 @@ Collect top Hacker News stories from the official Firebase API, normalize to CSV
 ### Location Config
 ```bash
 export CWD="$(pwd)"
-export PARENT="$(dirname "$CWD")"
-cd "$PARENT"
+if [ "$(basename "$CWD")" = "runbooks" ]; then
+  export REPO_ROOT="$(dirname "$CWD")"
+else
+  export REPO_ROOT="$CWD"
+fi
+cd "$REPO_ROOT"
 ```
 
 ### Data Config
 ```bash
 export GHOST_NAME="remember-me"
-export RAW_DIR="raw/hacker-news"
+export RAW_DIR="$REPO_ROOT/raw/hacker-news"
 export TMP_DIR="/tmp/delacruz-hacker-news"
 
 export HN_API_BASE="https://hacker-news.firebaseio.com/v0"
@@ -41,7 +45,7 @@ mkdir -p "$RAW_DIR"
 
 ### Check required tools
 ```bash
-for tool in curl jq; do
+for tool in curl jq ghost psql; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "Missing required tool: $tool"
     exit 1
@@ -56,12 +60,18 @@ curl -fsSL "$HN_API_BASE/topstories.json" > "$HN_IDS_JSON"
 
 ### Export story items
 ```bash
-: > "$HN_ITEMS_NDJSON"
+mkdir -p "$TMP_DIR/items"
+rm -f "$TMP_DIR/items/"*.json
 
-jq -r ".[:$HN_LIMIT][]" "$HN_IDS_JSON" | while read -r HN_ID; do
-  curl -fsSL "$HN_API_BASE/item/$HN_ID.json"
-  echo
-done > "$HN_ITEMS_NDJSON"
+jq -r ".[:$HN_LIMIT][]" "$HN_IDS_JSON" | xargs -I {} -P 10 curl -fsSL "$HN_API_BASE/item/{}.json" -o "$TMP_DIR/items/{}.json"
+
+: > "$HN_ITEMS_NDJSON"
+while IFS= read -r id; do
+  if [ -s "$TMP_DIR/items/$id.json" ]; then
+    cat "$TMP_DIR/items/$id.json" >> "$HN_ITEMS_NDJSON"
+    echo "" >> "$HN_ITEMS_NDJSON"
+  fi
+done < <(jq -r ".[:$HN_LIMIT][]" "$HN_IDS_JSON")
 
 jq -s 'map(select(. != null))' "$HN_ITEMS_NDJSON" > "$HN_STORIES_JSON"
 ```
@@ -129,8 +139,15 @@ head "$HN_TOP_STORIES_CSV"
 ## Ghost Database
 
 ```bash
-export DB_ID=$(ghost list --json | jq -r --arg name "$GHOST_NAME" '.[] | select(.name == $name) | .id')
-export PG_HOST=$(ghost connect $DB_ID)
+export DB_ID=$(ghost list --json | jq -r --arg name "$GHOST_NAME" '.[] | select(.name == $name) | .id' | head -1)
+
+if [ -z "$DB_ID" ]; then
+  echo "Could not find Ghost database named: $GHOST_NAME"
+  echo "Create it first with: ghost create --name $GHOST_NAME"
+  exit 1
+fi
+
+export PG_HOST=$(ghost connect "$DB_ID")
 echo "DB_ID: $DB_ID"
 ```
 
