@@ -13,7 +13,7 @@ jobs:
   hacker-news:
     runs-on: ubuntu-latest
     env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
       GHOST_API_KEY: ${{ secrets.GHOST_API_KEY }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GHOST_NAME: "remember-me"
