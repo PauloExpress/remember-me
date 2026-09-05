@@ -13,6 +13,7 @@ jobs:
     if: true  # <-- Remove this line to activate the workflow
     runs-on: ubuntu-latest
     env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
       GHOST_API_KEY: ${{ secrets.GHOST_API_KEY }}
       # Use a user PAT here. The default Actions GITHUB_TOKEN is an integration
       # token and cannot access user-scoped endpoints like /user/starred.
